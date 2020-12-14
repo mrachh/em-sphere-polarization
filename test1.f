@@ -85,7 +85,7 @@ c
       call prin2('zkout=*',zkout,2)
 
       call prin2('qout=*',qout,24)
-      nout = 1
+      nout = 5
       qout(1:3,1) = 0
       qout(1,1) = 1
       wout(1) = 1
@@ -105,10 +105,10 @@ c
         cevalsinc(1:3,i) = 0
         zfac = ima
         do n=1,nmax
-          rfac = (2*n+1.0d0)/(n+0.0d0)/(n+1.0d0)
+          rfac = (2.0d0*n+1.0d0)/(n+0.0d0)/(n+1.0d0)
           cevalsinc(1:3,i) = cevalsinc(1:3,i) +
-     1       zfac*rfac*(cmovalsout(1:3,n,i) - 
-     1         ima*cnevalsout(1:3,n,i))
+     1       zfac*rfac*(cmovalsinc(1:3,n,i) - 
+     1         ima*cnevalsinc(1:3,n,i))
           zfac = zfac*ima
         enddo
 
@@ -210,13 +210,13 @@ c
         ynm = 0
         ynmd = 0
         call ylgndr2sfw(nmax,ctheta,ynm,ynmd,wlege,nlege)
-        zn(1:3) = q(1:3,i)/r
-
         print *, rx,ry,rz
         print *, thetx,thety,thetz
         print *, phix,phiy,phiz
 
         do n=1,nmax
+          ynm(n,1) = -ynm(n,1)*sqrt((n+0.0d0)*(n+1.0d0)/(2*n+1.0d0))
+          ynmd(n,1) = -ynmd(n,1)*sqrt((n+0.0d0)*(n+1.0d0)/(2*n+1.0d0))
 
 c
 c  compute me
@@ -238,6 +238,7 @@ c
 
 
           zr = fjdivr(n)*cos(phi)*(n+0.0d0)*(n+1.0d0)*ynm(n,1)*sin(thet)
+          zr = zr/zk
           zt = -cos(phi)*ynmd(n,1)*(fjdivr(n)/zk + fjder(n)/zk)
           zp = -sin(phi)*ynm(n,1)*(fjdivr(n)/zk + fjder(n)/zk)
           cne(1,n,i) = zr*rx + zt*thetx + zp*phix
@@ -245,6 +246,7 @@ c
           cne(3,n,i) = zr*rz + zt*thetz + zp*phiz
 
           zr = fjdivr(n)*sin(phi)*(n+0.0d0)*(n+1.0d0)*ynm(n,1)*sin(thet)
+          zr = zr/zk
           zt = -sin(phi)*ynmd(n,1)*(fjdivr(n)/zk + fjder(n)/zk)
           zp = cos(phi)*ynm(n,1)*(fjdivr(n)/zk + fjder(n)/zk)
           cno(1,n,i) = zr*rx + zt*thetx + zp*phix
