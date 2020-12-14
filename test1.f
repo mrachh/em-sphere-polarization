@@ -1,6 +1,11 @@
       implicit real *8 (a-h,o-z)
-      complex *16, allocatable :: cmvalsin(:,:,:),cnvalsin(:,:,:)
-      complex *16, allocatable :: cmvalsout(:,:,:),cnvalsout(:,:,:)
+      complex *16, allocatable :: cmevalsin(:,:,:),cnevalsin(:,:,:)
+      complex *16, allocatable :: cmovalsin(:,:,:),cnovalsin(:,:,:)
+      complex *16, allocatable :: cmevalsout(:,:,:),cnevalsout(:,:,:)
+      complex *16, allocatable :: cmovalsout(:,:,:),cnovalsout(:,:,:)
+      complex *16, allocatable :: cmevalsinc(:,:,:),cnevalsinc(:,:,:)
+      complex *16, allocatable :: cmovalsinc(:,:,:),cnovalsinc(:,:,:)
+
       complex *16, allocatable :: cevalsin(:,:),chvalsin(:,:)
       complex *16, allocatable :: cevalsout(:,:),chvalsout(:,:)
       complex *16, allocatable :: cevalsinc(:,:),chvalsinc(:,:)
@@ -73,7 +78,8 @@ c
 
 
       nmax = 50
-      allocate(cmvalsout(3,nmax,nout),cnvalsout(3,nmax,nout))
+      allocate(cmevalsinc(3,nmax,nout),cnevalsinc(3,nmax,nout))
+      allocate(cmovalsinc(3,nmax,nout),cnovalsinc(3,nmax,nout))
       ifjh = 1
 
       call prin2('zkout=*',zkout,2)
@@ -83,7 +89,8 @@ c
       qout(1:3,1) = 0
       qout(1,1) = 1
       wout(1) = 1
-      call get_cmnvals(nout,qout,nmax,zkout,ifjh,cmvalsout,cnvalsout)
+      call get_cmnvals(nout,qout,nmax,zkout,ifjh,cmevalsinc,cnevalsinc,
+     1    cmovalsinc,cnovalsinc)
 
 c
 c  test electric field
@@ -100,12 +107,10 @@ c
         do n=1,nmax
           rfac = (2*n+1.0d0)/(n+0.0d0)/(n+1.0d0)
           cevalsinc(1:3,i) = cevalsinc(1:3,i) +
-     1       zfac*rfac*(imag(cmvalsout(1:3,n,i)) - 
-     1         ima*real(cnvalsout(1:3,n,i)))
+     1       zfac*rfac*(cmovalsout(1:3,n,i) - 
+     1         ima*cnevalsout(1:3,n,i))
           zfac = zfac*ima
         enddo
-
-        call prin2('cnvalsout=*',cnvalsout,3*nmax*2)
 
         if(i.lt.5)
      1   print *, etest(1),cevalsinc(1,i),etest(1)/cevalsinc(1,i)
@@ -135,15 +140,16 @@ c
 c
 c
 c
-      subroutine get_cmnvals(nq,q,nmax,zk,ifjh,cm,cn)
+      subroutine get_cmnvals(nq,q,nmax,zk,ifjh,cme,cne,cmo,cno)
       implicit real *8 (a-h,o-z)
       real *8 q(3,nq)
-      complex *16 zk,cm(3,nmax,nq),cn(3,nmax,nq),z,ima
+      complex *16 zk,cme(3,nmax,nq),cne(3,nmax,nq),z,ima
+      complex *16 cmo(3,nmax,nq),cno(3,nmax,nq)
       real *8, allocatable :: wlege(:)
       real *8, allocatable :: ynm(:,:),ynmd(:,:)
       complex *16, allocatable :: fjs(:),fjder(:),fjdivr(:)
-      complex *16 rpsi(3),rynm(3),rphi(3),rn(3)
-      complex *16 rpsithet,rpsiphi
+      complex *16 zpsi(3),zynm(3),zphi(3),zn(3)
+      complex *16 zr,zt,zp
 
       data ima/(0.0d0,1.0d0)/
 
@@ -200,28 +206,51 @@ c
         call prin2('fjdivr=*',fjdivr,24)
         call prin2('thet=*',thet,1)
         call prin2('phi=*',phi,1)
+        call prin2('ima=*',ima,2)
         ynm = 0
         ynmd = 0
         call ylgndr2sfw(nmax,ctheta,ynm,ynmd,wlege,nlege)
-        rn(1:3) = q(1:3,i)/r
+        zn(1:3) = q(1:3,i)/r
+
+        print *, rx,ry,rz
+        print *, thetx,thety,thetz
+        print *, phix,phiy,phiz
 
         do n=1,nmax
-          rpsithet = -ynmd(n,1)*exp(ima*phi)
-          rpsiphi = ima*exp(ima*phi)*ynm(n,1)
-          if(n.le.2) print *, n,rpsithet,rpsiphi
-          rynm(1:3) = rn(1:3)*ynm(n,1)*sin(thet)*exp(ima*phi)
-          rpsi(1) = rpsithet*thetx + rpsiphi*phix
-          rpsi(2) = rpsithet*thety + rpsiphi*phiy
-          rpsi(3) = rpsithet*thetz + rpsiphi*phiz
-          call zcross_prod3d(rn,rpsi,rphi)
 
-          cm(1:3,n,i) = -rphi(1:3)*fjs(n)*rscale**n
-          cn(1:3,n,i) = rynm(1:3)*(n+0.0d0)*(n+1.0d0)*fjdivr(n) + 
-     1        rpsi(1:3)*(fjder(n) + fjdivr(n)) 
-          cn(1:3,n,i) = cn(1:3,n,i)*rscale**n/zk
+c
+c  compute me
+c
+          zr = 0
+          zt = -sin(phi)*ynm(n,1)*fjs(n)
+          zp = cos(phi)*ynmd(n,1)*fjs(n)
+          cme(1,n,i) = zr*rx + zt*thetx + zp*phix
+          cme(2,n,i) = zr*ry + zt*thety + zp*phiy
+          cme(3,n,i) = zr*rz + zt*thetz + zp*phiz
+
+
+          zr = 0
+          zt = cos(phi)*ynm(n,1)*fjs(n)
+          zp = sin(phi)*ynmd(n,1)*fjs(n)
+          cmo(1,n,i) = zr*rx + zt*thetx + zp*phix
+          cmo(2,n,i) = zr*ry + zt*thety + zp*phiy
+          cmo(3,n,i) = zr*rz + zt*thetz + zp*phiz
+
+
+          zr = fjdivr(n)*cos(phi)*(n+0.0d0)*(n+1.0d0)*ynm(n,1)*sin(thet)
+          zt = -cos(phi)*ynmd(n,1)*(fjdivr(n)/zk + fjder(n)/zk)
+          zp = -sin(phi)*ynm(n,1)*(fjdivr(n)/zk + fjder(n)/zk)
+          cne(1,n,i) = zr*rx + zt*thetx + zp*phix
+          cne(2,n,i) = zr*ry + zt*thety + zp*phiy
+          cne(3,n,i) = zr*rz + zt*thetz + zp*phiz
+
+          zr = fjdivr(n)*sin(phi)*(n+0.0d0)*(n+1.0d0)*ynm(n,1)*sin(thet)
+          zt = -sin(phi)*ynmd(n,1)*(fjdivr(n)/zk + fjder(n)/zk)
+          zp = cos(phi)*ynm(n,1)*(fjdivr(n)/zk + fjder(n)/zk)
+          cno(1,n,i) = zr*rx + zt*thetx + zp*phix
+          cno(2,n,i) = zr*ry + zt*thety + zp*phiy
+          cno(3,n,i) = zr*rz + zt*thetz + zp*phiz
         enddo
-        call prin2('cn=*',cn,24)
-        call prin2('cm=*',cm,24)
       enddo
 
 
