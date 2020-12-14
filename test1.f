@@ -20,6 +20,8 @@
       rlam = 0.5d0
       zk = rlam*2*pi/2
 
+
+
       rfac = 1.33
       zkout = zk
       zkin = zkout*rfac
@@ -77,7 +79,7 @@ c
       call prin2('zkout=*',zkout,2)
 
       call prin2('qout=*',qout,24)
-      nout = 5
+      nout = 1
       qout(1:3,1) = 0
       qout(1,1) = 1
       wout(1) = 1
@@ -100,9 +102,10 @@ c
           cevalsinc(1:3,i) = cevalsinc(1:3,i) +
      1       zfac*rfac*(imag(cmvalsout(1:3,n,i)) - 
      1         ima*real(cnvalsout(1:3,n,i)))
-          print *, n, zfac,rfac
           zfac = zfac*ima
         enddo
+
+        call prin2('cnvalsout=*',cnvalsout,3*nmax*2)
 
         if(i.lt.5)
      1   print *, etest(1),cevalsinc(1,i),etest(1)/cevalsinc(1,i)
@@ -139,7 +142,7 @@ c
       real *8, allocatable :: wlege(:)
       real *8, allocatable :: ynm(:,:),ynmd(:,:)
       complex *16, allocatable :: fjs(:),fjder(:),fjdivr(:)
-      complex *16 rpsi(3),ry(3),rphi(3),rn(3)
+      complex *16 rpsi(3),rynm(3),rphi(3),rn(3)
       complex *16 rpsithet,rpsiphi
 
       data ima/(0.0d0,1.0d0)/
@@ -152,11 +155,17 @@ c
 
 
       allocate(fjs(0:nmax+10),fjder(0:nmax+10),fjdivr(0:nmax+10))
+      fjs = 0
+      fjder = 0
+      fjdivr = 0
       rscale = 1.0d0
       ifder = 1
       allocate(ynm(0:nmax,0:nmax),ynmd(0:nmax,0:nmax))
 
       do i=1,nq
+        r = 0
+        thet = 0 
+        phi = 0
         call cart2polar(q(1,i),r,thet,phi)
         ctheta = cos(thet)
         rx = sin(thet)*cos(phi)
@@ -186,30 +195,30 @@ c
           enddo
         endif
 
-        call prin2('fjs=*',fjs,24)
+        call prin2('fjs=*',fjs,2*nmax)
         call prin2('fjder=*',fjder,24)
         call prin2('fjdivr=*',fjdivr,24)
         call prin2('thet=*',thet,1)
         call prin2('phi=*',phi,1)
-
+        ynm = 0
+        ynmd = 0
         call ylgndr2sfw(nmax,ctheta,ynm,ynmd,wlege,nlege)
         rn(1:3) = q(1:3,i)/r
-        print *, thetx,thety,thetz
-        print *, phix,phiy,phiz
 
         do n=1,nmax
-          rpsithet = ynmd(n,1)*exp(ima*phi)
+          rpsithet = -ynmd(n,1)*exp(ima*phi)
           rpsiphi = ima*exp(ima*phi)*ynm(n,1)
-          ry(1:3) = rn(1:3)*ynm(n,1)*sin(thet)*exp(ima*phi)
+          if(n.le.2) print *, n,rpsithet,rpsiphi
+          rynm(1:3) = rn(1:3)*ynm(n,1)*sin(thet)*exp(ima*phi)
           rpsi(1) = rpsithet*thetx + rpsiphi*phix
           rpsi(2) = rpsithet*thety + rpsiphi*phiy
           rpsi(3) = rpsithet*thetz + rpsiphi*phiz
           call zcross_prod3d(rn,rpsi,rphi)
 
           cm(1:3,n,i) = -rphi(1:3)*fjs(n)*rscale**n
-          cn(1:3,n,i) = ry(1:3)*n*(n+1.0d0)*fjdivr(n) + 
+          cn(1:3,n,i) = rynm(1:3)*(n+0.0d0)*(n+1.0d0)*fjdivr(n) + 
      1        rpsi(1:3)*(fjder(n) + fjdivr(n)) 
-          cn(1:3,n,i) = cn(1:3,n,i)*rscale**n
+          cn(1:3,n,i) = cn(1:3,n,i)*rscale**n/zk
         enddo
         call prin2('cn=*',cn,24)
         call prin2('cm=*',cm,24)
