@@ -14,7 +14,9 @@
       complex *16 zk,zkin,zkout,ima
       real *8, allocatable :: qin(:,:),win(:)
       real *8, allocatable :: qout(:,:),wout(:)
-      complex *16 etest(3),zfac
+      complex *16 etest(3),zfac,htest(3)
+      real *8 v1(3),v2(3),v3(3)
+      real *8 rnx,rdx,rix
       data ima/(0.0d0,1.0d0)/
 
 
@@ -22,18 +24,20 @@
       
       done = 1.0d0
       pi = atan(done)*4.0d0
-      rlam = 0.5d0
+      rlam = 2.0d0
       zk = rlam*2*pi/2
 
 
 
-      rfac = 1.33
+      reta = 1.33
+      reta = 1.1d0
+      reta = 2
       zkout = zk
-      zkin = zkout*rfac
+      zkin = zkout*reta
 
-      kthet = 30
-      kphi = 20
-      kr = 20
+      kthet = 60
+      kphi = 60
+      kr = 30
       nin = kthet*kphi*kr
       allocate(qin(3,nin),win(nin))
 
@@ -42,12 +46,8 @@
 
       r1 = 0.0d0
       r2 = 1.0d0
-      print *, kr,kthet,kphi,nin,nout
-      print *, r1,r2
 
       call get_qnodes(kthet,kphi,kr,nin,r1,r2,qin,win)
-      call prin2('qin=*',qin,24)
-      call prin2('win=*',win,24)
 c
 c  test win
 c
@@ -59,7 +59,6 @@ c
       rex = 4.0d0/3.0d0*pi*(r2**3-r1**3)
       erra = abs(rex-ra)/abs(rex)
       call prin2('error in volume of sphere=*',erra,1)
-      print *, ra,rex,ra/rex
       
 
       r1 = 1
@@ -77,18 +76,11 @@ c
       call prin2('error in volume of spherical shell=*',erra,1)
 
 
-      nmax = 50
+      nmax = 100
       allocate(cmevalsinc(3,nmax,nout),cnevalsinc(3,nmax,nout))
       allocate(cmovalsinc(3,nmax,nout),cnovalsinc(3,nmax,nout))
       ifjh = 1
 
-      call prin2('zkout=*',zkout,2)
-
-      call prin2('qout=*',qout,24)
-      nout = 5
-      qout(1:3,1) = 0
-      qout(1,1) = 1
-      wout(1) = 1
       call get_cmnvals(nout,qout,nmax,zkout,ifjh,cmevalsinc,cnevalsinc,
      1    cmovalsinc,cnovalsinc)
 
@@ -98,37 +90,158 @@ c
       allocate(cevalsinc(3,nout),chvalsinc(3,nout))
       erra = 0
       ra = 0
+      errah = 0
       do i=1,nout
         z = qout(3,i)
         etest(1:3) = 0
+        htest(1:3) = 0
         etest(1) = exp(ima*zkout*z)
+        htest(2) = exp(ima*zkout*z)
         cevalsinc(1:3,i) = 0
+        chvalsinc(1:3,i) = 0
         zfac = ima
         do n=1,nmax
           rfac = (2.0d0*n+1.0d0)/(n+0.0d0)/(n+1.0d0)
           cevalsinc(1:3,i) = cevalsinc(1:3,i) +
      1       zfac*rfac*(cmovalsinc(1:3,n,i) - 
      1         ima*cnevalsinc(1:3,n,i))
+          chvalsinc(1:3,i) = chvalsinc(1:3,i) + 
+     1      zfac*rfac*(cmevalsinc(1:3,n,i) + ima*
+     2        cnovalsinc(1:3,n,i))
           zfac = zfac*ima
         enddo
 
-        if(i.lt.5)
-     1   print *, etest(1),cevalsinc(1,i),etest(1)/cevalsinc(1,i)
-        if(i.lt.5)
-     1   print *, etest(2),cevalsinc(2,i),etest(2)/cevalsinc(2,i)
-        
         rmag = abs(etest(1))**2
         ra = ra + rmag*wout(i)
 
         rmag = abs(etest(1)-cevalsinc(1,i))**2 + abs(cevalsinc(2,i))**2+
      1   abs(cevalsinc(3,i))**2
          
-        erra = erra + rmag*wout(i) 
+        erra = erra + rmag*wout(i)
+        rmag = abs(chvalsinc(1,i))**2 + abs(htest(2)-chvalsinc(2,i))**2+
+     1   abs(chvalsinc(3,i))**2
+        errah = errah + rmag*wout(i)
+         
       enddo
 
       erra = sqrt(erra/ra)
       call prin2('error in incident electric field=*',erra,1)
       
+      errah = sqrt(errah/ra)
+      call prin2('error in incident magnetic field=*',erra,1)
+
+
+      allocate(ccoefs(nmax),dcoefs(nmax))
+
+      call get_trans_coeff(nmax,zkout,zkin,reta,ccoefs,dcoefs)
+      call prin2('ccoefs=*',ccoefs,2*nmax)
+      call prin2('dcoefs=*',dcoefs,2*nmax)
+c
+c
+c
+c
+      allocate(cmevalsin(3,nmax,nin),cnevalsin(3,nmax,nin))
+      allocate(cmovalsin(3,nmax,nin),cnovalsin(3,nmax,nin))
+      allocate(cevalsin(3,nin),chvalsin(3,nin))
+      ifjh = 1
+
+      nn = 100
+      do ii=1,nn
+        reta = 1.0d0 + (ii-1)/(nn-1.0d0)
+        zkout = zk
+        zkin = zkout*reta
+        call prin2('zkin=*',zkin,2)
+        call prin2('zkout=*',zkout,2)
+        ccoefs = 0
+        dcoefs = 0
+        call get_trans_coeff(nmax,zkout,zkin,reta,ccoefs,dcoefs)
+        call prin2('ccoefs=*',ccoefs,2*nmax)
+        call prin2('dcoefs=*',dcoefs,2*nmax)
+
+
+
+        cmevalsin = 0
+        cnevalsin = 0
+        cmovalsin = 0
+        cnovalsin = 0
+
+        call prinf('ifjh=*',ifjh,1)
+
+        call get_cmnvals(nin,qin,nmax,zkin,ifjh,cmevalsin,cnevalsin,
+     1      cmovalsin,cnovalsin)
+
+        
+
+        rint = 0
+        rrint = 0
+        riint = 0
+        reint = 0
+        rsint = 0
+        cevalsin = 0
+        chvalsin = 0
+        rvol = 0
+        rmax = 0
+        imax = 1
+        do i=1,nin
+          zfac = ima
+          do n=1,nmax
+            rfac = (2.0d0*n+1.0d0)/(n+0.0d0)/(n+1.0d0)
+            cevalsin(1:3,i) = cevalsin(1:3,i) +
+     1         zfac*rfac*(ccoefs(n)*cmovalsin(1:3,n,i) - 
+     1         ima*dcoefs(n)*cnevalsin(1:3,n,i))
+            chvalsin(1:3,i) = chvalsin(1:3,i) - 
+     1        zfac*rfac*reta*(dcoefs(n)*cmevalsin(1:3,n,i) + ima*
+     2        ccoefs(n)*cnovalsin(1:3,n,i))
+            zfac = zfac*ima
+          enddo
+          v1(1:3) = real(cevalsin(1:3,i))
+          v2(1:3) = imag(cevalsin(1:3,i))
+          call cross_prod3d(v1,v2,v3)
+          rmag3 = v3(1)**2 + v3(2)**2 + v3(3)**2 
+          rint = rint + rmag3*win(i)
+          rmag1 = v1(1)**2 + v1(2)**2 + v1(3)**2
+          rrint = rrint + rmag1*win(i)
+          rmag2 = v2(1)**2 + v2(2)**2 + v2(3)**2
+          riint = riint + rmag2*win(i)
+
+
+          r1 = sqrt(rmag3)/sqrt(rmag1*rmag2)
+          if(rmag1*rmag2.le.1.0d-32) r1 = 0
+
+          rsint = rsint + r1*win(i)
+
+
+          rnx = rmag1 + rmag2
+          rdx = rmag1 - rmag2
+
+          rix = v1(1)*v2(1) + v1(2)*v2(2) + v1(3)*v2(3)
+
+          rdis = sqrt(rdx**2 + 4*rix**2)
+
+
+          rex = (rnx - rdis)/(rnx + rdis)
+
+          reint = reint + rex*win(i)
+
+          rvol = rvol + win(i)
+          
+
+        enddo
+
+        print *, imax,rmax
+        rint = sqrt(rint)
+        rrint = sqrt(rrint)
+        riint = sqrt(riint)
+        call prin2('rvol=*',rvol,1)
+
+        rint = rint/rrint/riint
+        rsint = sqrt(rsint)/rvol
+        reint = sqrt(reint)/rvol
+        write(40,*) reta,rint,rsint,reint,rrint,riint
+        call prin2('l2 norm of integral of cross product=*',rint,1)
+        call prin2('rel l2 norm of sin=*',rsint,1)
+        call prin2('rel l2 norm of ecc=*',reint,1)
+      enddo
       
 
 
@@ -140,6 +253,61 @@ c
 c
 c
 c
+      subroutine get_trans_coeff(nmax,zk0,zk1,reta,ccoefs,dcoefs)
+      implicit real *8 (a-h,o-z)
+      complex *16 zk0,zk1,ccoefs(nmax),dcoefs(nmax)
+      complex *16, allocatable :: fjs0(:),fhs0(:),fjder0(:),fhder0(:)
+      complex *16, allocatable :: fjs1(:),fhs1(:),fjder1(:),fhder1(:)
+      complex *16 z1,z2,z3,z4
+
+      allocate(fjs0(0:nmax+10),fhs0(0:nmax+10))
+      allocate(fjder0(0:nmax+10),fhder0(0:nmax+10))
+
+
+      allocate(fjs1(0:nmax+10),fhs1(0:nmax+10))
+      allocate(fjder1(0:nmax+10),fhder1(0:nmax+10))
+
+      ifder = 1
+      rscale = 1.0d0
+      call besseljs3d(nmax+1,zk0,rscale,fjs0,ifder,fjder0)
+      call h3dall(nmax+1,zk0,rscale,fhs0,ifder,fhder0)
+
+      call prin2('fjs0=*',fjs0,2*nmax)
+      call prin2('fhs0=*',fhs0,2*nmax)
+
+
+      call besseljs3d(nmax+1,zk1,rscale,fjs1,ifder,fjder1)
+      call h3dall(nmax+1,zk1,rscale,fhs1,ifder,fhder1)
+      call prin2('fjs1=*',fjs1,2*nmax)
+      call prin2('fhs1=*',fhs1,2*nmax)
+      print *, zk0
+      print *, zk1
+
+      do n=1,nmax
+        z1 = (zk0*fhder0(n) + fhs0(n))*fjs0(n)
+        z2 = (zk0*fjder0(n) + fjs0(n))*fhs0(n)
+        z3 = (zk0*fhder0(n) + fhs0(n))*fjs1(n)
+        z4 = (zk1*fjder1(n) + fjs1(n))*fhs0(n)
+
+        print *, n, abs(z3-z4),abs(reta**2*z3-z4)
+
+
+        ccoefs(n) = (z1-z2)/(z3-z4)
+        dcoefs(n) = (reta*z1 - reta*z2)/(reta**2*z3 - z4)
+      enddo
+
+
+      return
+      end
+
+
+
+c
+c
+c
+c
+c
+
       subroutine get_cmnvals(nq,q,nmax,zk,ifjh,cme,cne,cmo,cno)
       implicit real *8 (a-h,o-z)
       real *8 q(3,nq)
@@ -201,18 +369,9 @@ c
           enddo
         endif
 
-        call prin2('fjs=*',fjs,2*nmax)
-        call prin2('fjder=*',fjder,24)
-        call prin2('fjdivr=*',fjdivr,24)
-        call prin2('thet=*',thet,1)
-        call prin2('phi=*',phi,1)
-        call prin2('ima=*',ima,2)
         ynm = 0
         ynmd = 0
         call ylgndr2sfw(nmax,ctheta,ynm,ynmd,wlege,nlege)
-        print *, rx,ry,rz
-        print *, thetx,thety,thetz
-        print *, phix,phiy,phiz
 
         do n=1,nmax
           ynm(n,1) = -ynm(n,1)*sqrt((n+0.0d0)*(n+1.0d0)/(2*n+1.0d0))
