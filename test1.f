@@ -21,10 +21,12 @@
 
 
       call prini(6,13)
+      call prin2('enter iw=*',iw,0)
+      read *, iw
       
       done = 1.0d0
       pi = atan(done)*4.0d0
-      rlam = 2.0d0
+      rlam = 1.0d0
       zk = rlam*2*pi/2
 
 
@@ -35,9 +37,9 @@
       zkout = zk
       zkin = zkout*reta
 
-      kthet = 60
-      kphi = 60
-      kr = 30
+      kthet = 80
+      kphi = 80
+      kr = 80
       nin = kthet*kphi*kr
       allocate(qin(3,nin),win(nin))
 
@@ -134,8 +136,8 @@ c
       allocate(ccoefs(nmax),dcoefs(nmax))
 
       call get_trans_coeff(nmax,zkout,zkin,reta,ccoefs,dcoefs)
-      call prin2('ccoefs=*',ccoefs,2*nmax)
-      call prin2('dcoefs=*',dcoefs,2*nmax)
+cc      call prin2('ccoefs=*',ccoefs,2*nmax)
+cc      call prin2('dcoefs=*',dcoefs,2*nmax)
 c
 c
 c
@@ -145,18 +147,18 @@ c
       allocate(cevalsin(3,nin),chvalsin(3,nin))
       ifjh = 1
 
-      nn = 100
+      nn = 10
       do ii=1,nn
         reta = 1.0d0 + (ii-1)/(nn-1.0d0)
         zkout = zk
         zkin = zkout*reta
-        call prin2('zkin=*',zkin,2)
-        call prin2('zkout=*',zkout,2)
+cc        call prin2('zkin=*',zkin,2)
+cc        call prin2('zkout=*',zkout,2)
         ccoefs = 0
         dcoefs = 0
         call get_trans_coeff(nmax,zkout,zkin,reta,ccoefs,dcoefs)
-        call prin2('ccoefs=*',ccoefs,2*nmax)
-        call prin2('dcoefs=*',dcoefs,2*nmax)
+cc        call prin2('ccoefs=*',ccoefs,2*nmax)
+cc        call prin2('dcoefs=*',dcoefs,2*nmax)
 
 
 
@@ -165,7 +167,7 @@ c
         cmovalsin = 0
         cnovalsin = 0
 
-        call prinf('ifjh=*',ifjh,1)
+cc        call prinf('ifjh=*',ifjh,1)
 
         call get_cmnvals(nin,qin,nmax,zkin,ifjh,cmevalsin,cnevalsin,
      1      cmovalsin,cnovalsin)
@@ -182,6 +184,10 @@ c
         rvol = 0
         rmax = 0
         imax = 1
+
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,zfac,n,rfac,v1,v2,v3)
+C$OMP$PRIVATE(rmag1,rmag2,rmag3,r1,rnx,rdx,rix,rdis,rex)
+C$OMP$REDUCTION(+:rint,rrint,riint,rsint,reint,rvol)
         do i=1,nin
           zfac = ima
           do n=1,nmax
@@ -224,20 +230,19 @@ c
           reint = reint + rex*win(i)
 
           rvol = rvol + win(i)
-          
 
         enddo
+C$OMP END PARALLEL DO        
 
-        print *, imax,rmax
         rint = sqrt(rint)
         rrint = sqrt(rrint)
         riint = sqrt(riint)
-        call prin2('rvol=*',rvol,1)
+cc        call prin2('rvol=*',rvol,1)
 
         rint = rint/rrint/riint
         rsint = sqrt(rsint)/rvol
         reint = sqrt(reint)/rvol
-        write(40,*) reta,rint,rsint,reint,rrint,riint
+        write(iw,*) reta,rint,reint,rrint,riint
         call prin2('l2 norm of integral of cross product=*',rint,1)
         call prin2('rel l2 norm of sin=*',rsint,1)
         call prin2('rel l2 norm of ecc=*',reint,1)
@@ -272,16 +277,19 @@ c
       call besseljs3d(nmax+1,zk0,rscale,fjs0,ifder,fjder0)
       call h3dall(nmax+1,zk0,rscale,fhs0,ifder,fhder0)
 
-      call prin2('fjs0=*',fjs0,2*nmax)
-      call prin2('fhs0=*',fhs0,2*nmax)
+cc      call prin2('fjs0=*',fjs0,2*nmax)
+cc      call prin2('fhs0=*',fhs0,2*nmax)
 
 
       call besseljs3d(nmax+1,zk1,rscale,fjs1,ifder,fjder1)
       call h3dall(nmax+1,zk1,rscale,fhs1,ifder,fhder1)
-      call prin2('fjs1=*',fjs1,2*nmax)
-      call prin2('fhs1=*',fhs1,2*nmax)
-      print *, zk0
-      print *, zk1
+cc      call prin2('fjs1=*',fjs1,2*nmax)
+cc      call prin2('fhs1=*',fhs1,2*nmax)
+
+cc      call prin2('zk0=*',zk0,2)
+cc      call prin2('zk1=*',zk1,2)
+cc      print *, zk0
+cc      print *, zk1
 
       do n=1,nmax
         z1 = (zk0*fhder0(n) + fhs0(n))*fjs0(n)
@@ -289,7 +297,7 @@ c
         z3 = (zk0*fhder0(n) + fhs0(n))*fjs1(n)
         z4 = (zk1*fjder1(n) + fjs1(n))*fhs0(n)
 
-        print *, n, abs(z3-z4),abs(reta**2*z3-z4)
+cc        print *, n, abs(z3-z4),abs(reta**2*z3-z4)
 
 
         ccoefs(n) = (z1-z2)/(z3-z4)
@@ -336,6 +344,9 @@ c
       ifder = 1
       allocate(ynm(0:nmax,0:nmax),ynmd(0:nmax,0:nmax))
 
+C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,r,thet,phi)
+C$OMP$PRIVATE(ctheta,rx,ry,rz,thetx,thety,thetz,phix,phiy)
+C$OMP$PRIVATE(phiz,z,fjs,fjder,fjdivr,ynm,ynmd,n,zr,zt,zp)
       do i=1,nq
         r = 0
         thet = 0 
@@ -413,6 +424,7 @@ c
           cno(3,n,i) = zr*rz + zt*thetz + zp*phiz
         enddo
       enddo
+C$OMP END PARALLEL DO      
 
 
 
