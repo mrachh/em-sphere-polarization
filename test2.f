@@ -41,9 +41,9 @@
       zkout = zk
       zkin = zkout*reta
 
-      kthet = 80
-      kphi = 80
-      kr = 80
+      kthet = 10
+      kphi = 10
+      kr = 10
 
       nout = kthet*kphi*kr
       allocate(qout(3,nout),wout(nout))
@@ -61,7 +61,7 @@
       thets(3) = pi/2
       phis(3) = pi/2
 
-      thets(3) = 0.78d0*pi
+      thets(4) = 0.78d0*pi
       phis(4) = 1.9d0*pi
 
       nin = nang*k1
@@ -247,7 +247,7 @@ C$OMP$PRIVATE(rmag1,rmag2,rmag3,r1,rnx,rdx,rix,rdis,rex)
           rix = v1(1)*v2(1) + v1(2)*v2(2) + v1(3)*v2(3)
           rdis = sqrt(rdx**2 + 4*rix**2)
           rex = (rnx - rdis)/(rnx + rdis)
-          ecc(i,ii) = sqrt(rex)
+          ecc(i,ii) = rex 
 
         enddo
 C$OMP END PARALLEL DO        
@@ -518,9 +518,9 @@ c
         phi = p(iang)
         do j=1,k
           ipt = (iang-1)*k + j
-          qin(1,ipt) = xs(j)*sin(thet)*cos(phi)
-          qin(2,ipt) = xs(j)*sin(thet)*sin(phi)
-          qin(3,ipt) = xs(j)*cos(thet)
+          q(1,ipt) = xs(j)*sin(thet)*cos(phi)
+          q(2,ipt) = xs(j)*sin(thet)*sin(phi)
+          q(3,ipt) = xs(j)*cos(thet)
         enddo
       enddo
 
